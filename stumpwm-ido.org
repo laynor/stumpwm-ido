@@ -1,0 +1,9 @@
+* IDO Completions for stumpwm
+** Command History
+   By command or by set?
+** Completions
+   - Sets composition through primitive operations
+   - Sets definition should be simple
+** Completions Display 
+   - Inline display
+   - Table display

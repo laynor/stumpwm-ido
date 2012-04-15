@@ -1,5 +1,5 @@
 ;;;; package.lisp
 
 (defpackage #:stumpwm-ido
-  (:use #:cl))
+  (:use #:cl #:alexandria))
 

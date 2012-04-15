@@ -8,5 +8,8 @@
 	       #:pstrings
                #:alexandria)
   :components ((:file "package")
+	       (:file "utils")
+	       (:file "completions")
+	       (:file "matchers")
                (:file "stumpwm-ido")))
 
