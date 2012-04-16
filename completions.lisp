@@ -5,9 +5,9 @@
 ;;; Author: Alessandro Piras
 ;;; Maintainer: 
 ;;; Created: Tue Apr 10 16:24:32 2012 (+0200)
-;;; Last-Updated: Fri Apr 13 10:26:14 2012 (+0200)
+;;; Last-Updated: Mon Apr 16 14:04:41 2012 (+0200)
 ;;;           By: Alessandro Piras
-;;;     Update #: 3
+;;;     Update #: 4
 ;;; URL: 
 ;;; Keywords: 
 ;;; Compatibility: 
@@ -16,9 +16,44 @@
 ;;; 
 ;;;; Commentary:
 ;;;  Completions Sets for stumpwm IDO module.
+;;;
+;;;  The sets are implemented as `completions-set' structures (csets).
+;;;  These structures have three fields:
+;;;  SET: A data structure representing a set of values from which to
+;;;       choose the matches, or a function that takes an input string
+;;;       and a cursor position and returns such a set.
+;;;  FILTER-FN: A function that, given the input string, the cursor
+;;;             position, the set data structure stored in or returned
+;;;             by the SET field and a MATCH-FN predicate and returns a
+;;;             list containing all the elements in set that match the
+;;;             input string according to the MATCH-FN predicate.
+;;;  SORT-FN: A function that takes the result of FILTER-FN and sorts
+;;;           them. Defaults to `identity'. 
+;;;
+;;;  Input Matchers: The MATCH-FN predicates (defined in matchers.lisp)
+;;;  An input matcher is a function that takes the input string, the
+;;;  cursor position and a pstring, and returns non nil if the pstring
+;;;  matches the input string, nil otherwise.
+;;;
+;;;  This module offers some helpers to easily create csets for some
+;;;  common cases:
 ;;;  
-;;; 
-;;; 
+;;;  1. The cset is a sequence, or a function that returns one:
+;;;     this sets can be created using `sequence-cset'.
+;;;  2. The cset is the union of other csets:
+;;;     this set can be created using `cset-union'.
+;;;  3. The cset has the same values as another completions set, but
+;;;     the input should have some prefix string to trigger the
+;;;     completion: this set can be created using `prefix-cset'.
+;;;
+;;;  Example: creating a cset *MYSET* that completes comma-prefixed
+;;;           stumpwm commands or shell commands:
+;;;  Let *commands-set* be the cset of command completions, and
+;;;  *shell-commands-set* be the cset of shell commands.
+;;;  We can create the set *MYSET* as follows:
+;;;  (defparameter *myset* (cset-union (prefix-cset *commands-set*)
+;;;                                    *shell-commands-set*))
+;;;  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
 ;;;; Change Log:
@@ -45,7 +80,6 @@
 ;;; 
 ;;;; Code:
 
-;;; TODO: flex matching
 ;;; TODO: add documentation
 (in-package :stumpwm-ido)
 (declaim (optimize (speed 0) (debug 3)))
@@ -120,6 +154,12 @@ MATCH-FN."
 (defun sequence-filter (match-fn input-string cursor-position sequence)
   (remove-if-not (curry match-fn input-string cursor-position)
 		 sequence))
+
+(defun sequence-cset (sequence-or-function)
+  "Takes a sequence or a function that returns one, and returns a
+completion set."
+  (make-completions-set :filter-fn #'sequence-filter
+			:set sequence-or-function))
 
 ;;; Prefix input: switch completion set using prefixes
 (defun prefix-input-string (plen input-string include-prefix-p)
@@ -196,8 +236,7 @@ MATCH-FN."
     (reverse res)))
 
 (defparameter *command-completions*
-  (make-completions-set :filter-fn #'sequence-filter
-			:set #'commands))
+  (sequence-cset #'commands))
 
 ;;; File Path Set
 (defun pathname-set-filter (match-fn input-string cursor-position set)
