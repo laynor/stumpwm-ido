@@ -6,6 +6,7 @@
                #:clx
 	       #:cl-fad
 	       #:pstrings
+	       #:pstrings-xlib
                #:alexandria)
   :components ((:file "package")
 	       (:file "utils")
