@@ -61,8 +61,8 @@
   (declare (ignore cursor-pos))
   (search input-string (pstr:pstring-string string) :test (if case-sensitive-p #'eql #'char-equal)))
 
-(defparameter ido-flex-matcher (list :or #'ido-subseq-match #'ido-fuzzy-match))
-(defparameter ido-fuzzy-matcher-substring-match-first (list :union #'ido-subseq-match))
+(defparameter *ido-flex-matcher* (list :or #'ido-subseq-match #'ido-fuzzy-match))
+(defparameter *ido-fuzzy-matcher-substring-match-first* (list :union #'ido-subseq-match #'ido-fuzzy-match))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; matchers.lisp ends here
