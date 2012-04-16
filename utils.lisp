@@ -6,5 +6,5 @@
 be passed as the SUBSTRING parameter."
   (adjust-array substring (- end start)
 		:displaced-to string
-		:displaced-index-offset start)))
+		:displaced-index-offset start))
 
