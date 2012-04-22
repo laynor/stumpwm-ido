@@ -14,16 +14,66 @@ should be set reasonably low as it impacts the speed of the completion
 formatting function.")
 
 (pstr:defface ido-matches-separator
-    :foreground "red")
+  :documentation "Face for symbols used when displaying completions matches."
+  :foreground "red")
 
 (pstr:defface ido-matches
-    :foreground "Gray80")
+  :documentation "Face used by ido for displaying normal matches."
+  :foreground "Gray80")
 
 (pstr:defface ido-exact-match
-    :foreground "green")
+  :documentation "Face used by ido for highlighting an exact match."
+  :foreground "green")
 
 (pstr:defface ido-first-match
-    :weight "bold")
+  :documentation "Face used by ido for highlighting the first match in the list."
+  :weight "bold")
+
+(pstr:defface ido-matches-alt-1
+  :documentation "Face used by ido for highlighting matches having :match-type
+property set to 1."
+  :foreground "blue")
+
+(pstr:defface ido-matches-alt-2
+  :documentation "Face used by ido for highlighting matches having :match-type
+property set to 2."
+  :foreground "violet")
+
+(pstrings:defface :default
+  :family "terminus"
+  :pixel-size 12
+  :foreground "white"
+  :slant "r")
+
+(pstrings:defface :cursor
+  :background "magenta"
+  :foreground "black")
+
+(pstrings:defface :title1
+  :pixel-size 24
+  :foreground "red")
+
+(pstrings:defface :title2
+  :pixel-size 20
+  :inherit '(:title1))
+
+(pstrings:defface :title3
+  :pixel-size 16)
+
+(pstrings:defface :emph
+  :inherit '(:italic))
+
+(pstrings:defface :input-prompt
+  :foreground "green"
+  :weight "bold")
+
+
+;;; FIXME: Completions should not be calculated every time, but only when input changes
+;;; TODO: Make it possible to catch changes in the input text
+;;;       This can probably be done checking what the last command was, and update the
+;;;       completions only in that case. The current completion list should be stored
+;;;       somewhere.
+
 
 ;;; Symbols internal in STUMPWM used:
 ;;; screen-font
@@ -47,7 +97,7 @@ formatting function.")
 
 (defun ido-setup-input-window (screen prompt input)
   "Set the window input up to read input."
-  (let ((height (+ (xlib:font-descent (stumpwm::screen-font screen))  ;FIXME: calculate height for input
+  (let ((height (+ (xlib:font-descent (stumpwm::screen-font screen))  ;FIXME: calculate height for input (pstring)
 		   (xlib:font-descent (stumpwm::screen-font screen))))
 	(win (stumpwm::screen-input-window screen)))
     ;; window dimensions
@@ -58,17 +108,24 @@ formatting function.")
     (xlib:map-window win)
     (ido-draw-input-bucket screen prompt input)))
 
+(defun propertize-match (match)
+  (let ((face (case (pstr:pstring-get-property match :match-type 0)
+		(nil :ido-matches)
+		(1 :ido-matches-alt-1)
+		(2 :ido-matches-alt-2))))
+    (pstr:pstring-propertize match :face face)))
+
 (defun format-matches (completions)
   (flet ((csymbol (text)
 	   (pstr:pstring-propertize text :face :ido-matches-separator)))
     (reduce #'pstr:pstring-concat
 	    (nconc (list (csymbol "{ "))
-		   (butlast (mapcan (lambda (el)
-				      (list (pstr:pstring-propertize el :face :ido-matches)
+		   (butlast (mapcan (lambda (match)
+				      (list (propertize-match match)
 					    (pstr:pstring-propertize " | " :face :ido-matches-separator)))
 				    completions))
 		   (list (csymbol " }"))))))
-	   
+
 (defun ido-inline-completions (prompt input completions screen)
   (let ((gcontext (stumpwm::screen-message-gc screen))
 	(maxwidth (- (stumpwm::screen-width screen) (* 2 stumpwm:*message-window-padding*)))
@@ -156,7 +213,7 @@ the user aborted."
 		    (stumpwm::with-focus (stumpwm::screen-input-window screen)
 		      (key-loop))
 		 (stumpwm::shutdown-input-window screen))))))
-	
+
 (defun color-cursor (text point)
   (let ((face (pstr:copy-face
 	       (or (pstr:lookup-face
@@ -188,40 +245,11 @@ the user aborted."
 				(+ a  stumpwm:*message-window-padding*)
 				t)))))
 
-(pstrings:defface :default
-  :family "terminus"
-  :pixel-size 12
-  :foreground "white"
-  :slant "r")
-
-(pstrings:defface :cursor
-  :background "magenta"
-  :foreground "black")
-
-(pstrings:defface :title1
-  :pixel-size 24
-  :foreground "red")
-
-(pstrings:defface :title2
-  :pixel-size 20
-  :inherit '(:title1))
-
-(pstrings:defface :title3
-  :pixel-size 16)
-
-(pstrings:defface :emph
-  :inherit '(:italic))
-
-(pstrings:defface :input-prompt
-  :foreground "green"
-  :weight "bold")
-    
 (stumpwm:defcommand prova () ()
   (print (ido-read-one-line (stumpwm:current-screen)
 			    (pstr:pstring-propertize "Cmd: " :face :input-prompt))))
-  
+
 (stumpwm:defcommand prova2() ()
   (let ((*completions-set* *pathname-completions*))
     (print (ido-read-one-line (stumpwm:current-screen)
 			      (pstr:pstring-propertize "Cmd: " :face :input-prompt)))))
-
