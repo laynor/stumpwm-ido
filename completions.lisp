@@ -88,6 +88,7 @@
 (defstruct (completions-set (:conc-name cset-))
   filter-fn		; (filter-fn match-fn input-string cursor-position set-data)
   (sort-fn #'identity)	; (sort-fn input-string cursor-position completions-list)
+  (transform-input-fn #'identity) ; (transform-input-fn input-string cursor-position set-data)
   set)
 
 (defun ido-unsorted-input-completions-1 (input-string cursor-position cset match-fn)
@@ -96,7 +97,7 @@ and CURSOR-POSITION according to the string matching function
 MATCH-FN."
   (funcall (cset-filter-fn cset)
 	   match-fn
-	   input-string
+	   (funcall (cset-transform-input-fn cset) input-string)
 	   cursor-position
 	   (let ((set (cset-set cset)))
 	     (typecase set
@@ -243,14 +244,68 @@ completion set."
   (remove-if-not (curry match-fn (file-namestring input-string) cursor-position)
 		 set))
 
+(defun pathname->string (pathname)
+  (let ((fn (file-namestring pathname)))
+    (if (emptyp fn)
+	(concatenate 'string (car (last (pathname-directory pathname))) "/")
+	fn)))
+
+(defun pathname->completion (pathname)
+  (let ((untyped-completion (pstr:pstring-propertize (pathname->string pathname)
+						     :value pathname)))
+    (if (fad:directory-pathname-p pathname)
+	(pstr:pstring-propertize untyped-completion
+				 :match-type 1)
+	untyped-completion)))
+
 (defun pathname-set (input-string cursor-position)
   (declare (ignore cursor-position))
-  (mapcar #'enough-namestring
+  (mapcar #'pathname->completion
 	  (fad:list-directory (directory-namestring input-string))))
 
+(defun pathname-completion< (path1 path2)
+  (apply #'string-lessp (mapcar (lambda (path)
+				  (let ((p (remove-if-not #'alphanumericp (pstr:pstring-string path))))
+				    (if (emptyp p) path p)))
+				(list path1 path2))))
+
+(defun pathname-set-sort (completions-list)
+  (sort completions-list #'pathname-completion<))
+
 (defparameter *pathname-completions* 
-  (make-completions-set :filter-fn #'pathname-set-filter
+  (make-completions-set :filter-fn #'sequence-filter
+			:sort-fn #'pathname-set-sort
+			:transform-input-fn #'file-namestring
 			:set #'pathname-set))
+
+
+(defun lcps (prefix strings &key (test #'eql))
+  "Longest Common Prefixed Substring. Returns the longest common
+substring starting with PREFIX in STRINGS."
+  (let* ((positions (mapcar (compose (curry #'+ (length prefix))
+				     (curry #'search prefix))
+			    strings))
+	 (postfixes (mapcar #'subseq strings positions))
+	 (shortest-postfix (reduce #'(lambda (x1 x2)
+				       (if (< (length x1) (length x2))
+					   x1
+					   x2))
+				   postfixes)))
+
+    (print (list postfixes shortest-postfix))
+    (let ((end (dotimes (i (length shortest-postfix) i)
+		 (unless (every (lambda (postfix)
+				  (funcall test (elt postfix i)
+					   (elt shortest-postfix i)))
+				postfixes)
+		   (return-from nil i)))))
+      (concatenate 'string prefix (subseq shortest-postfix 0 end)))))
+
+;; (defun ido-expand-input (input-string cursor-pos cset match-fn)
+;;   (let ((compls (mapcar #'pstr:pstring-string (ido-input-completions input-string cursor-pos cset match-fn))))
+;;     (lcps (funcall (cset-transform-input-fn cset)
+;; 		   (subseq input-string 0 cursor-pos))
+;; 	  (
 
 ;;; TODO Find a way to list only files with a given property (ex. executables)
 ;;;      a portable way would be better!
