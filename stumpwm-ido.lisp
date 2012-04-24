@@ -5,7 +5,6 @@
 (defvar *completions-set* nil)
 (defvar *ido-match-function* *ido-flex-matcher*)
 
-;;; "stumpwm-ido" goes here. Hacks and glory await!
 (declaim (optimize (speed 0) (debug 3)))
 
 (defvar *ido-max-inline-completions* 30
