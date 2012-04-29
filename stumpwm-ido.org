@@ -2,8 +2,22 @@
 ** Command History
    By command or by set?
 ** Completions
-   - Sets composition through primitive operations
+   - [2/2] Sets composition through primitive operations
+     - [X] Union
+     - [X] Prefixed 
    - Sets definition should be simple
+   - [ ] Fallback completion sets 
+** Matchers
+*** Base matchers [2/2]
+    - [X] subseq
+    - [X] fuzzy
+*** Composable matchers [3/3]:
+    - [X] And
+    - [X] Or (first that matches anything)
+    - [X] Union
+	  
 ** Completions Display 
    - Inline display
    - Table display
+     
+

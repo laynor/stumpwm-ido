@@ -38,6 +38,11 @@ property set to 1."
 property set to 2."
   :foreground "violet")
 
+(pstr:defface :ido-error
+  :documentation "Face used by ido for highlighting inline error messages."
+  :foreground "magenta"
+  :inherit '(:italic))
+
 (pstr:defface :default
   :family "terminus"
   :pixel-size 12
@@ -115,15 +120,20 @@ property set to 2."
     (pstr:pstring-propertize match :face face)))
 
 (defun format-matches (completions)
-  (flet ((csymbol (text)
-	   (pstr:pstring-propertize text :face :ido-matches-separator)))
-    (reduce #'pstr:pstring-concat
-	    (nconc (list (csymbol "{ "))
-		   (butlast (mapcan (lambda (match)
-				      (list (propertize-match match)
-					    (pstr:pstring-propertize " | " :face :ido-matches-separator)))
-				    completions))
-		   (list (csymbol " }"))))))
+  (cond ((null completions)
+	 (pstr:pstring-concat (pstr:pstring-propertize "[" :face :ido-matches-separator)
+			      (pstr:pstring-propertize "No match" :face :ido-error)
+			      (pstr:pstring-propertize "]" :face :ido-matches-separator)))
+	(t (flet ((csymbol (text)
+		    (pstr:pstring-propertize text :face :ido-matches-separator)))
+	     (reduce #'pstr:pstring-concat
+		     (nconc (list (csymbol "{ "))
+			    (butlast (mapcan (lambda (match)
+					       (list (propertize-match match)
+						     (pstr:pstring-propertize " | "
+									      :face :ido-matches-separator)))
+					     completions))
+			    (list (csymbol " }"))))))))
 
 (defun ido-inline-completions (prompt input completions screen)
   (let ((gcontext (stumpwm::screen-message-gc screen))
@@ -133,7 +143,7 @@ property set to 2."
 	     (pstr:pstring-concat prompt (stumpwm::input-line-string input) " " (format-matches comps) " ... ")))
       (do ((comps (reverse (subseq completions 0 (min *ido-max-inline-completions* n))) (cdr comps)))
 	  ((< (pstr:xlib-pstring-extents gcontext (make-display-string comps)) maxwidth)
-	   (reverse (append (and (progn (print (list n *ido-max-inline-completions*)) (> n (length comps))) (list "...")) comps)))))))
+	   (reverse (append (and  (> n (length comps)) (list "...")) comps)))))))
 
 (defparameter *ido-current-completions* nil)
 
@@ -179,38 +189,33 @@ the user aborted."
 		      (compls (stumpwm::input-find-completions in stumpwm::*input-completions*)))
 		 (and (consp compls)
 		      (string= in (car compls)))))
+	     (input-changed (old-input-string old-input-position input-line)
+	       (not (string= old-input-string (stumpwm::input-line-string input-line))))
 	     (key-loop ()
 	       (let ((old-input initial-input)
 		     (old-input-pos (length initial-input)))
 		 (loop for key = (stumpwm::read-key-or-selection) do
 		      (cond ((stringp key)
-			     (stumpwm::input-insert-string input key)
-			     (ido-draw-input-bucket screen prompt input
-						    (format-matches
-						     (ido-inline-completions prompt
-									     input
-									     *ido-current-completions*
-									     screen))))
+			     (stumpwm::input-insert-string input key))
 			    ;; skip modifiers
 			    ((stumpwm::is-modifier (car key)))
 			    ((ido-process-input screen prompt input (car key) (cdr key))
 			     (if (or (not require-match)
 				     (match-input))
-				 (return (stumpwm::input-line-string input))
-				 (ido-draw-input-bucket screen prompt input "[No match]" t))))
+				 (return (stumpwm::input-line-string input)))))
 		      (print old-input)
-		      (unless (string= old-input (stumpwm::input-line-string input))
+		      (when (input-changed old-input old-input-pos input)
 			(setf old-input (copy-sequence 'string (stumpwm::input-line-string input)))
 			(setf old-input-pos (stumpwm::input-line-position input))
 			(setf *ido-current-completions* (ido-input-completions old-input
 									       old-input-pos
 									       *completions-set*
 									       *ido-match-function*)))
-		      (ido-draw-input-bucket screen prompt input (format-matches
-								  (ido-inline-completions prompt
-											  input
-											  *ido-current-completions*
-											  screen)))))))
+		      (ido-draw-input-bucket screen prompt input
+					     (format-matches (ido-inline-completions prompt
+										     input
+										     *ido-current-completions*
+										     screen)))))))
 	     (ido-setup-input-window screen prompt input)
 	     (catch :abort
 	       (unwind-protect
