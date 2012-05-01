@@ -16,8 +16,21 @@
     - [X] Or (first that matches anything)
     - [X] Union
 	  
-** Completions Display 
-   - Inline display
-   - Table display
-     
+** Interface 
+   - loop
+     c = read-key-or-selection
+     - handle selection
+     - ignore modifiers
+     - s=process-key
+     - case s
+       - :error ...
+       - :done ...
+       - :
+*** TODO Completions Display 
+    - Inline display
+    - Table display
+*** TODO Rotation commands
+*** TODO Expansion commands
+*** TODO Flash window on error
+*** TODO Completion command
 
