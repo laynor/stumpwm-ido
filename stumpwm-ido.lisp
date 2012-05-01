@@ -1,16 +1,44 @@
 ;;;; stumpwm-ido.lisp
 
 (in-package #:stumpwm-ido)
+(declaim (optimize (speed 0) (debug 3)))
 
 (defvar *completions-set* nil)
 (defvar *ido-match-function* *ido-flex-matcher*)
 
-(declaim (optimize (speed 0) (debug 3)))
 
 (defvar *ido-max-inline-completions* 30
   "Maximum number of completions displayed in the input window. This
 should be set reasonably low as it impacts the speed of the completion
 formatting function.")
+
+(pstr:defface :default
+  :family "terminus"
+  :pixel-size 12
+  :foreground "white"
+  :slant "r")
+
+(pstr:defface :cursor
+  :background "magenta"
+  :foreground "black")
+
+(pstr:defface :title1
+  :pixel-size 24
+  :foreground "red")
+
+(pstr:defface :title2
+  :pixel-size 20
+  :inherit '(:title1))
+
+(pstr:defface :title3
+  :pixel-size 16)
+
+(pstr:defface :italic
+  :slant "i")
+(pstr:defface :oblique
+  :slant "o")
+(pstr:defface :emph
+  :inherit '(:italic))
 
 (pstr:defface ido-matches-separator
   :documentation "Face for symbols used when displaying completions matches."
@@ -43,29 +71,6 @@ property set to 2."
   :foreground "magenta"
   :inherit '(:italic))
 
-(pstr:defface :default
-  :family "terminus"
-  :pixel-size 12
-  :foreground "white"
-  :slant "r")
-
-(pstr:defface :cursor
-  :background "magenta"
-  :foreground "black")
-
-(pstr:defface :title1
-  :pixel-size 24
-  :foreground "red")
-
-(pstr:defface :title2
-  :pixel-size 20
-  :inherit '(:title1))
-
-(pstr:defface :title3
-  :pixel-size 16)
-
-(pstr:defface :emph
-  :inherit '(:italic))
 
 (pstr:defface :input-prompt
   :foreground "green"
@@ -142,12 +147,15 @@ property set to 2."
     (flet ((make-display-string (comps)
 	     (pstr:pstring-concat prompt (stumpwm::input-line-string input) " " (format-matches comps) " ... ")))
       (do ((comps (reverse (subseq completions 0 (min *ido-max-inline-completions* n))) (cdr comps)))
-	  ((< (pstr:xlib-pstring-extents gcontext (make-display-string comps)) maxwidth)
+	  ((or (null comps) (< (pstr:xlib-pstring-extents gcontext (make-display-string comps)) maxwidth))
 	   (reverse (append (and  (> n (length comps)) (list "...")) comps)))))))
 
 (defparameter *ido-current-completions* nil)
 
-(defun ido-process-input (screen prompt input code state)
+(defparameter *ido-input-map*
+  (stumpwm::copy-kmap stumpwm::*input-map*))
+
+(defun ido-process-input (input code state)
   "Process the key (code and state) given the current input
 buffer. Returns a new modified input buffer."
   (labels ((process-key (code state)
@@ -155,13 +163,12 @@ buffer. Returns a new modified input buffer."
 pressed. Return 'done when the user has signalled the finish of his
 input (pressing Return), nil otherwise."
 	     (let* ((key (stumpwm::code-state->key code state))
-		    (command (and key (stumpwm::lookup-key stumpwm::*input-map* key t))))
+		    (command (and key (stumpwm::lookup-key *ido-input-map* key t))))
 	       (if command
 		   (prog1
 		       (funcall command input key)
 		     (setf stumpwm::*input-last-command* command))
-		   :error)))
-	   )
+		   :error))))
     (case (process-key code state)
       (:done
        (unless (or (stumpwm::input-line-password input)
@@ -180,7 +187,7 @@ input (pressing Return), nil otherwise."
   (cond ((stringp key)
 	 (stumpwm::input-insert-string input key))
 	((stumpwm::is-modifier (car key)))
-	(t (case (ido-process-input nil nil input (car key) (cdr key))
+	(t (case (ido-process-input input (car key) (cdr key))
 	     (:error :error)
 	     (:done :done)
 	     (t nil)))))
@@ -277,7 +284,13 @@ the user aborted."
   (print (ido-read-one-line (stumpwm:current-screen)
 			    (pstr:pstring-propertize "Cmd: " :face :input-prompt))))
 
+(stumpwm:defcommand prova3 () ()
+  (let ((*completions-set* *command-completions*))
+    (ido-read-one-line (stumpwm::current-screen)
+		       (pstr:pstring-propertize "CMD: " :face :input-prompt))))
 (stumpwm:defcommand prova2() ()
   (let ((*completions-set* *pathname-completions*))
     (print (ido-read-one-line (stumpwm:current-screen)
 			      (pstr:pstring-propertize "Cmd: " :face :input-prompt)))))
+
+
