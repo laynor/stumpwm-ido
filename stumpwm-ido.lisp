@@ -173,8 +173,17 @@ input (pressing Return), nil otherwise."
        (throw :abort t))
       (:error
        ;; FIXME draw inverted text
-       nil)
+       :error)
       (t nil))))
+
+(defun process-key-or-selection (key input)
+  (cond ((stringp key)
+	 (stumpwm::input-insert-string input key))
+	((stumpwm::is-modifier (car key)))
+	(t (case (ido-process-input nil nil input (car key) (cdr key))
+	     (:error :error)
+	     (:done :done)
+	     (t nil)))))
 
 (defun ido-read-one-line (screen prompt &key (initial-input "") require-match password)
   "Read a line of input through stumpwm and return it. Returns nil if
@@ -190,38 +199,39 @@ the user aborted."
 		 (and (consp compls)
 		      (string= in (car compls)))))
 	     (input-changed (old-input-string old-input-position input-line)
+	       (declare (ignorable old-input-position))
 	       (not (string= old-input-string (stumpwm::input-line-string input-line))))
 	     (key-loop ()
 	       (let ((old-input initial-input)
 		     (old-input-pos (length initial-input)))
 		 (loop for key = (stumpwm::read-key-or-selection) do
-		      (cond ((stringp key)
-			     (stumpwm::input-insert-string input key))
-			    ;; skip modifiers
-			    ((stumpwm::is-modifier (car key)))
-			    ((ido-process-input screen prompt input (car key) (cdr key))
-			     (if (or (not require-match)
-				     (match-input))
-				 (return (stumpwm::input-line-string input)))))
-		      (print old-input)
-		      (when (input-changed old-input old-input-pos input)
-			(setf old-input (copy-sequence 'string (stumpwm::input-line-string input)))
-			(setf old-input-pos (stumpwm::input-line-position input))
-			(setf *ido-current-completions* (ido-input-completions old-input
-									       old-input-pos
-									       *completions-set*
-									       *ido-match-function*)))
-		      (ido-draw-input-bucket screen prompt input
-					     (format-matches (ido-inline-completions prompt
-										     input
-										     *ido-current-completions*
-										     screen)))))))
-	     (ido-setup-input-window screen prompt input)
-	     (catch :abort
-	       (unwind-protect
-		    (stumpwm::with-focus (stumpwm::screen-input-window screen)
-		      (key-loop))
-		 (stumpwm::shutdown-input-window screen))))))
+		      (let ((status (process-key-or-selection key input)))
+			;; handle end of input
+			(when (eq status :done)
+			  (if (or (not require-match)
+				  (match-input))
+			      (return (stumpwm::input-line-string input))))
+			;; handle input change
+			(when (input-changed old-input old-input-pos input)
+			  (setf old-input (copy-sequence 'string (stumpwm::input-line-string input)))
+			  (setf old-input-pos (stumpwm::input-line-position input))
+			  (setf *ido-current-completions* (ido-input-completions old-input
+										 old-input-pos
+										 *completions-set*
+										 *ido-match-function*)))
+			;; draw 
+			(ido-draw-input-bucket screen prompt input
+					       (format-matches (ido-inline-completions prompt
+										       input
+										       *ido-current-completions*
+										       screen))
+					       (eq status :error)))))))
+      (ido-setup-input-window screen prompt input)
+      (catch :abort
+	(unwind-protect
+	     (stumpwm::with-focus (stumpwm::screen-input-window screen)
+	       (key-loop))
+	  (stumpwm::shutdown-input-window screen))))))
 
 
 
@@ -254,7 +264,13 @@ the user aborted."
 				gcontext
 				stumpwm:*message-window-padding*
 				(+ a  stumpwm:*message-window-padding*)
-				t)))))
+				t)))
+      (when errorp
+        (stumpwm::invert-rect screen win 0 0 (xlib:drawable-width win) (xlib:drawable-height win))
+        (xlib:display-force-output stumpwm::*display*)
+        (sleep 0.05)
+        (stumpwm::invert-rect screen win 0 0 (xlib:drawable-width win) (xlib:drawable-height win)))
+    ))
 
 
 (stumpwm:defcommand prova () ()
