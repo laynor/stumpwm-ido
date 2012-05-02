@@ -54,6 +54,7 @@ formatting function.")
 
 (pstr:defface ido-first-match
   :documentation "Face used by ido for highlighting the first match in the list."
+  :foreground "cyan"
   :weight "bold")
 
 (pstr:defface ido-matches-alt-1
@@ -130,15 +131,19 @@ property set to 2."
 			      (pstr:pstring-propertize "No match" :face :ido-error)
 			      (pstr:pstring-propertize "]" :face :ido-matches-separator)))
 	(t (flet ((csymbol (text)
-		    (pstr:pstring-propertize text :face :ido-matches-separator)))
-	     (reduce #'pstr:pstring-concat
-		     (nconc (list (csymbol "{ "))
-			    (butlast (mapcan (lambda (match)
-					       (list (propertize-match match)
-						     (pstr:pstring-propertize " | "
-									      :face :ido-matches-separator)))
-					     completions))
-			    (list (csymbol " }"))))))))
+		    (pstr:pstring-propertize text :face :ido-matches-separator))
+		  (add-sep (match)
+		    (list (propertize-match match)
+			  (pstr:pstring-propertize " | " :face :ido-matches-separator))))
+	     ;; separated completions
+	     (let* ((scmps-1 (butlast (mapcan #'add-sep completions))) 
+		    ;; first-match
+		    (scmps (cons (pstr:pstring-propertize (first scmps-1) :face :ido-first-match)
+				 (cdr scmps-1))))
+	       (reduce #'pstr:pstring-concat
+		       (nconc (list (csymbol "{ "))
+			      scmps
+			      (list (csymbol " }")))))))))
 
 (defun ido-inline-completions (prompt input completions screen)
   (let ((gcontext (stumpwm::screen-message-gc screen))
@@ -294,3 +299,11 @@ the user aborted."
 			      (pstr:pstring-propertize "Cmd: " :face :input-prompt)))))
 
 
+(stumpwm:defcommand ido-rotate-fwd (input key) ()
+  (setf *ido-current-completions* (rotate *ido-current-completions* -1)))
+
+(stumpwm:defcommand ido-rotate-bwd (input key) ()
+  (setf *ido-current-completions* (rotate *ido-current-completions*)))
+
+(stumpwm:define-key *ido-input-map* (stumpwm:kbd "C-s") 'ido-rotate-fwd)
+(stumpwm:define-key *ido-input-map* (stumpwm:kbd "C-r") 'ido-rotate-bwd)

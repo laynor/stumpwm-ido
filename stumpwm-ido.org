@@ -29,8 +29,10 @@
 *** TODO Completions Display 
     - Inline display
     - Table display
-*** TODO Rotation commands
+*** DONE Rotation commands
+    - State "DONE"       from "TODO"       [2012-05-02 Wed 11:09]
 *** TODO Expansion commands
-*** TODO Flash window on error
+*** DONE Flash window on error
+    - State "DONE"       from "TODO"       [2012-05-02 Wed 11:09]
 *** TODO Completion command
-
+*** TODO Solve looping when there is no space to display the input string
