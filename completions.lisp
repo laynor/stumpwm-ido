@@ -261,6 +261,7 @@ completion set."
 
 (defun list-directory (dir)
   (directory (concatenate 'string dir "*.*") :resolve-symlinks nil))
+
 (defun pathname-set (input-string cursor-position)
   (declare (ignore cursor-position))
   (mapcar #'pathname->completion
