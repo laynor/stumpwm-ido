@@ -181,8 +181,7 @@ input (pressing Return), nil otherwise."
 			(string= (stumpwm::input-line-string input) (first stumpwm::*input-history*))))
 	 (push (stumpwm::input-line-string input) stumpwm::*input-history*))
        :done)
-      (:abort
-       (throw :abort t))
+      (:abort (throw :abort t))
       (:error
        ;; FIXME draw inverted text
        :error)
@@ -219,10 +218,9 @@ the user aborted."
 		 (loop for key = (stumpwm::read-key-or-selection) do
 		      (let ((status (process-key-or-selection key input)))
 			;; handle end of input
-			(when (eq status :done)
-			  (if (or (not require-match)
-				  (match-input))
-			      (return (stumpwm::input-line-string input))))
+			(when (and (eq status :done)
+				   (or (not require-match) (match-input)))
+			  (return (stumpwm::input-line-string input)))
 			;; handle input change
 			(when (input-changed old-input old-input-pos input)
 			  (setf old-input (copy-sequence 'string (stumpwm::input-line-string input)))
@@ -307,3 +305,25 @@ the user aborted."
 
 (stumpwm:define-key *ido-input-map* (stumpwm:kbd "C-s") 'ido-rotate-fwd)
 (stumpwm:define-key *ido-input-map* (stumpwm:kbd "C-r") 'ido-rotate-bwd)
+
+
+(defun ido-complete-input (input key)
+  (declare (ignore key))
+  (setf (stumpwm::input-line-string input) (stumpwm::make-input-string (pstr:pstring-string (car *ido-current-completions*)))
+	(stumpwm::input-line-position input) (pstr:pstring-length (car *ido-current-completions*))))
+
+(stumpwm:define-key *ido-input-map* (stumpwm:kbd "C-Return") 'ido-complete-input)
+
+(defun ido-expand-input (input key) 
+  (declare (ignore key))
+  (setf (stumpwm::input-line-string input)
+	(stumpwm::make-input-string 
+	 (ido-cset-expand-input (stumpwm::input-line-string input)
+				(stumpwm::input-line-position input)
+				*completions-set*
+				*ido-match-function*)))
+  (setf (stumpwm::input-line-position input)
+	(length (stumpwm::input-line-string input))))
+
+(stumpwm:define-key *ido-input-map* (stumpwm:kbd "Tab") 'ido-expand-input)
+

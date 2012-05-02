@@ -36,3 +36,4 @@
     - State "DONE"       from "TODO"       [2012-05-02 Wed 11:09]
 *** TODO Completion command
 *** TODO Solve looping when there is no space to display the input string
+*** TODO PAthname completions: refactor set and provide tree navigation

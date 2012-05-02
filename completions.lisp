@@ -89,6 +89,7 @@
   filter-fn		; (filter-fn match-fn input-string cursor-position set-data)
   (sort-fn #'identity)	; (sort-fn input-string cursor-position completions-list)
   (transform-input-fn #'identity) ; (transform-input-fn input-string cursor-position set-data)
+  (expand-completion-fn #'pstr:pstring-string)
   set)
 
 (defun ido-unsorted-input-completions-1 (input-string cursor-position cset match-fn)
@@ -258,10 +259,12 @@ completion set."
 				 :match-type 1)
 	untyped-completion)))
 
+(defun list-directory (dir)
+  (directory (concatenate 'string dir "*.*") :resolve-symlinks nil))
 (defun pathname-set (input-string cursor-position)
   (declare (ignore cursor-position))
   (mapcar #'pathname->completion
-	  (fad:list-directory (directory-namestring input-string))))
+	  (list-directory (directory-namestring input-string))))
 
 (defun pathname-completion< (path1 path2)
   (apply #'string-lessp (mapcar (lambda (path)
@@ -276,14 +279,18 @@ completion set."
   (make-completions-set :filter-fn #'sequence-filter
 			:sort-fn #'pathname-set-sort
 			:transform-input-fn #'file-namestring
+			:expand-completion-fn (lambda (cmp)
+						(namestring
+						 (pstr:pstring-get-property cmp :value 0)))
 			:set #'pathname-set))
 
 
 (defun lcps (prefix strings &key (test #'eql))
   "Longest Common Prefixed Substring. Returns the longest common
 substring starting with PREFIX in STRINGS."
-  (let* ((positions (mapcar (compose (curry #'+ (length prefix))
-				     (curry #'search prefix))
+  (let* ((positions (mapcar (lambda (cmp)
+			      (+ (length prefix)
+				 (search prefix cmp :test test)))
 			    strings))
 	 (postfixes (mapcar #'subseq strings positions))
 	 (shortest-postfix (reduce #'(lambda (x1 x2)
@@ -292,7 +299,6 @@ substring starting with PREFIX in STRINGS."
 					   x2))
 				   postfixes)))
 
-    (print (list postfixes shortest-postfix))
     (let ((end (dotimes (i (length shortest-postfix) i)
 		 (unless (every (lambda (postfix)
 				  (funcall test (elt postfix i)
@@ -301,11 +307,13 @@ substring starting with PREFIX in STRINGS."
 		   (return-from nil i)))))
       (concatenate 'string prefix (subseq shortest-postfix 0 end)))))
 
-;; (defun ido-expand-input (input-string cursor-pos cset match-fn)
-;;   (let ((compls (mapcar #'pstr:pstring-string (ido-input-completions input-string cursor-pos cset match-fn))))
-;;     (lcps (funcall (cset-transform-input-fn cset)
-;; 		   (subseq input-string 0 cursor-pos))
-;; 	  (
+(defun ido-cset-expand-input (input-string cursor-pos cset match-fn)
+  (let ((compls (ido-input-completions input-string cursor-pos cset match-fn)))
+    (lcps input-string
+     	  (mapcar (cset-expand-completion-fn cset)
+     		  compls)
+     	  :test #'char-equal))) ;FIXME -> should check if case sensitivity is active or not
+		   
 
 ;;; TODO Find a way to list only files with a given property (ex. executables)
 ;;;      a portable way would be better!
